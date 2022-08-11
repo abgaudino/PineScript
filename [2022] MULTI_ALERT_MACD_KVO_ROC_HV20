@@ -1,0 +1,87 @@
+// This source code is subject to the terms of the Mozilla Public License 2.0 at https://mozilla.org/MPL/2.0/
+// © Cryptomoose43
+
+//@version=5
+
+// This source code is subject to the terms of the Mozilla Public License 2.0 at https://mozilla.org/MPL/2.0/
+// © Cryptomoose43
+
+//@version=5
+
+//  MACD
+
+indicator(title="HV_MACD_KVO_ROC")
+
+// Getting inputs
+
+fast_length = input(title="Fast Length", defval=12)
+slow_length = input(title="Slow Length", defval=26)
+src = input(title="Source", defval=close)
+signal_length = input.int(title="Signal Smoothing", minval = 1, maxval = 50, defval = 9)
+sma_source = input.string(title="Oscillator MA Type", defval="EMA", options=["SMA", "EMA"])
+sma_signal = input.string(title="Signal Line MA Type", defval="EMA", options=["SMA", "EMA"])
+
+// Plot color
+
+col_macd = input(#2962FF, "MACD Line  ", group="Color Settings", inline="MACD")
+col_signal = input(#FF6D00, "Signal Line  ", group="Color Settings", inline="Signal")
+col_grow_above = input(#26A69A, "Above   Grow", group="Histogram", inline="Above")
+col_fall_above = input(#B2DFDB, "Fall", group="Histogram", inline="Above")
+col_grow_below = input(#FFCDD2, "Below Grow", group="Histogram", inline="Below")
+col_fall_below = input(#FF5252, "Fall", group="Histogram", inline="Below")
+
+// Calculating
+
+fast_ma = sma_source == "SMA" ? ta.sma(src, fast_length) : ta.ema(src, fast_length)
+slow_ma = sma_source == "SMA" ? ta.sma(src, slow_length) : ta.ema(src, slow_length)
+macd = fast_ma - slow_ma
+signal = sma_signal == "SMA" ? ta.sma(macd, signal_length) : ta.ema(macd, signal_length)
+hist = macd - signal
+plot(hist, title="Histogram", style=plot.style_columns, color=(hist>=0 ? (hist[1] < hist ? col_grow_above : col_fall_above) : (hist[1] < hist ? col_grow_below : col_fall_below)))
+plot(macd, title="MACD", color=col_macd)
+plot(signal, title="Signal", color=col_signal)
+
+
+//  KLINGER OSCILLATOR
+
+
+var cumVol = 0.
+cumVol += nz(volume)
+if barstate.islast and cumVol == 0
+    runtime.error("No volume is provided by the data vendor.")
+sv = ta.change(hlc3) >= 0 ? volume : -volume
+kvo = ta.ema(sv, 34) - ta.ema(sv, 55)
+sig = ta.ema(kvo, 13)
+plot(kvo, color = #2962FF)
+plot(sig, color = #43A047)
+
+
+//  ROC 
+
+length = input.int(9, minval=1)
+source = input(close, "Source")
+roc = 100 * (source - source[length])/source[length]
+plot(roc, color=#2962FF, title="ROC")
+hline(0, color=#787B86, title="Zero Line")
+
+//  HV
+
+hlength = input.int(10, minval=1)
+annual = 365
+per = timeframe.isintraday or timeframe.isdaily and timeframe.multiplier == 1 ? 1 : 7
+hv = 100 * ta.stdev(math.log(close / close[1]), hlength) * math.sqrt(annual / per)
+plot(hv, "HV", color=#2962FF)
+
+// ALERT CONDITIONS
+
+macd_cross = ta.crossover(macd, signal)
+kvo_cross = ta.crossover(kvo, sig)
+roc_cross = ta.crossover(roc, 0) 
+hv_cross = (hv > 20)
+allcross = (macd_cross and kvo_cross and roc_cross and hv_cross)
+
+msg = "hv="+str.tostring(hv[0])+ " MONEY FUCKER!! MACD, KVO, ROC CROSS"
+
+alertcondition( condition = allcross, title = "MULTI_ALERT", message = msg)
+
+
