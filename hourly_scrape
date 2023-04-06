@@ -1,0 +1,74 @@
+//@version=4
+study("Hourly Return with Moving Averages and Volume", shorttitle="HR_MA_Vol", overlay=true)
+
+// Define input parameters
+var float initialCapital = 1000  // Initial capital in USD
+var float targetReturn = 0.005   // Target hourly return of 0.5%
+var int tradingHours = 1        // Number of trading hours per day
+
+// Define strategy variables
+var float previousClose = na
+var float entryPrice = na
+var float targetPrice = na
+var bool enterTrade = na
+
+// Define Moving Averages
+var int fastLength = 10        // Fast MA length
+var int slowLength = 30        // Slow MA length
+var int signalLength = 9      // Signal MA length
+var float fastMA = na
+var float slowMA = na
+var float signalMA = na
+
+// Define Volume variables
+var int volumeLength = 20      // Volume MA length
+var float volumeMA = na
+
+// Calculate hourly return
+var float hourlyReturn = (1 + targetReturn) / tradingHours
+
+// Get close price and volume
+closePrice = close
+volume = volume
+
+// Check for a new trading hour
+newHour = hour != hour[1]
+
+// Entry condition
+enterTradeCondition = closePrice > previousClose * (1 + hourlyReturn) and crossover(fastMA, slowMA) and volume > volumeMA
+
+// Exit condition
+exitTradeCondition = closePrice >= targetPrice or closePrice <= entryPrice * (1 - hourlyReturn)
+
+// Update strategy variables
+if (newHour)
+    enterTrade := enterTradeCondition
+    if (enterTrade)
+        entryPrice := closePrice
+        targetPrice := entryPrice * (1 + hourlyReturn)
+else
+    if (enterTrade)
+        if (exitTradeCondition)
+            enterTrade := false
+
+previousClose := closePrice
+
+// Calculate Moving Averages
+fastMA := sma(closePrice, fastLength)
+slowMA := sma(closePrice, slowLength)
+signalMA := sma(closePrice, signalLength)
+
+// Calculate Volume Moving Average
+volumeMA := sma(volume, volumeLength)
+
+// Plot Moving Averages
+plot(fastMA, color=color.blue, linewidth=2, title="Fast MA")
+plot(slowMA, color=color.red, linewidth=2, title="Slow MA")
+plot(signalMA, color=color.green, linewidth=2, title="Signal MA")
+
+// Plot Volume Moving Average
+plot(volumeMA, color=color.orange, linewidth=2, title="Volume MA")
+
+// Plot entry and exit signals
+plotshape(enterTrade, color=color.green, style=shape.triangleup, location=location.belowbar)
+plotshape(exitTradeCondition, color=color.red, style=shape.triangledown, location=location.abovebar)
